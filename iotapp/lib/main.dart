@@ -4,7 +4,8 @@ import 'package:system_setting/system_setting.dart';
 import 'dart:async';
 import 'package:wifi_hunter/wifi_hunter.dart';
 import 'package:flutter/services.dart';
-
+//import 'package:dropdown_formfield/dropdown_formfield.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
 
 BluetoothState state;
 
@@ -57,13 +58,13 @@ class _MyHomePageState extends State<MyHomePage> {
     //var wifiNames = new Map<String, String>();
     print("WiFi Results (SSIDs) : ");
     for (var i = 0; i < _wifiObject.ssids.length; i++) {
-      wifiStrenghts[_wifiObject.bssids[i].toString()] = _wifiObject.signalStrengths[i];
+      wifiStrenghts[_wifiObject.bssids[i].toString()] =
+          _wifiObject.signalStrengths[i];
       //wifiNames[_wifiObject.bssids[i].toString()] = _wifiObject.ssids[i];
       //debugPrint("- " + _wifiObject.ssids[i]+ "   bssid: "+ _wifiObject.bssids[i] + " : " + _wifiObject.signalStrengths[i].toString());
     }
-    var sortedMap = Map.fromEntries(
-    wifiStrenghts.entries.toList()
-    ..sort((e1, e2) => e2.value.compareTo(e1.value)));
+    var sortedMap = Map.fromEntries(wifiStrenghts.entries.toList()
+      ..sort((e1, e2) => e2.value.compareTo(e1.value)));
     return sortedMap;
   }
 
@@ -200,36 +201,43 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  void printWifis(){
+  Future<List<String>> printWifis() async{
+    List<String> wifis = new List<String>();
     scanHandler().asStream().listen((event) {
       debugPrint(event.toString());
+      for(var x in event.entries){
+        wifis.add(x.key.toString());
+      }
+      //wifis.add(event.toString());
     });
+    return wifis;
   }
+
 //https://pub.dev/packages/dropdown_formfield
   @override
   Widget build(BuildContext context) {
-  //scanHandler(); 
-  return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text(widget.title),
-        actions: <Widget>[
-          Switch(
-            value: autoMode,
-            onChanged: (value) {
-                  printWifis();
-              setState(() {
-                autoMode = value;
-                //print(autoMode);
-              });
-            },
-            activeTrackColor: Colors.lightGreenAccent,
-            activeColor: Colors.green,
-          ),
-        ],
-      ),
-      body: myLayoutWidget() //_buildView()
-      );
+    //scanHandler();
+    return Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(
+          title: Text(widget.title),
+          actions: <Widget>[
+            Switch(
+              value: autoMode,
+              onChanged: (value) {
+                printWifis();
+                setState(() {
+                  autoMode = value;
+                  //print(autoMode);
+                });
+              },
+              activeTrackColor: Colors.lightGreenAccent,
+              activeColor: Colors.green,
+            ),
+          ],
+        ),
+        body: myLayoutWidget() //_buildView()
+        );
   }
 
   _jumpToSetting() {
@@ -252,18 +260,42 @@ class MyCustomForm extends StatefulWidget {
 } */
 
 class MyCustomFormState extends State<MyCustomForm> {
-  
   // Create a global key that uniquely identifies the Form widget
   // and allows validation of the form.
   //
   // Note: This is a `GlobalKey<FormState>`,
   // not a GlobalKey<MyCustomFormState>.
   final _formKey = GlobalKey<FormState>();
-    var ssidTextController = new TextEditingController();
-    var passwordTextController = new TextEditingController();
-    var serverTextController = new TextEditingController();
+  //String _myActivity;
+  //String _myActivityResult;
+  final dropdownFormKey = new GlobalKey<FormState>();
+  var ssidTextController = new TextEditingController();
+  var passwordTextController = new TextEditingController();
+  var serverTextController = new TextEditingController();
 
-  Container inputContainer(String input, TextEditingController _controller, IconData icon) {
+  final GlobalKey<FormState> _formKey2 = GlobalKey<FormState>();
+  TextEditingController _typeAheadController = TextEditingController();
+  String _selectedCity;
+
+  @override
+  void initState() {    
+    super.initState();
+    //_myActivity = '';
+    //_myActivityResult = '';
+  }
+
+  _saveForm() {
+    var form = dropdownFormKey.currentState;
+    if (form.validate()) {
+      form.save();
+      setState(() {
+        //_myActivityResult = _myActivity;
+      });
+    }
+  }
+
+  Container inputContainer(
+      String input, TextEditingController _controller, IconData icon) {
     return Container(
       child: Row(
         children: <Widget>[
@@ -300,12 +332,15 @@ class MyCustomFormState extends State<MyCustomForm> {
   @override
   Widget build(BuildContext context) {
     // Build a Form widget using the _formKey created above.
-    Container ssid = inputContainer("ssid", ssidTextController, Icons.network_wifi);
-    Container password = inputContainer("password", passwordTextController, Icons.lock);
-    Container server = inputContainer("server", serverTextController, Icons.computer);
+    Container ssid =
+        inputContainer("ssid", ssidTextController, Icons.network_wifi);
+    Container password =
+        inputContainer("password", passwordTextController, Icons.lock);
+    Container server =
+        inputContainer("server", serverTextController, Icons.computer);
     return Form(
         key: _formKey,
-        child: Column(children: <Widget>[
+        child: ListView(children: <Widget>[
           // Add TextFormFields and RaisedButton here.
           ssid,
           password,
@@ -318,20 +353,82 @@ class MyCustomFormState extends State<MyCustomForm> {
               ),
               onPressed: () async {
                 return showDialog(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      // Retrieve the text the that user has entered by using the
-                      // TextEditingController.
-                      content: Text(
-                      ssidTextController.text + "\n"+
-                      passwordTextController.text + "\n"+
-                      serverTextController.text + "\n"),
-                    );
-                  },
-                );
-              })
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        // Retrieve the text the that user has entered by using the
+                        // TextEditingController.
+                        content: Text(ssidTextController.text +
+                            "\n" +
+                            passwordTextController.text +
+                            "\n" +
+                            serverTextController.text +
+                            "\n"),
+                      );
+                    });
+              }),
+          dropDownForm(_typeAheadController, _formKey2, _selectedCity)
         ]));
   }
+
+  Widget dropDownForm(TextEditingController _typeAheadController, GlobalKey<FormState> _formKey, String _selectedCity){
+  Future<List<String>> wifiSuggenstions = _MyHomePageState().printWifis();
+
+  
+  return Form(
+  key: _formKey,
+  child: Padding(
+    padding: EdgeInsets.all(32.0),
+    child: Column(
+      children: <Widget>[
+        Text(
+          'Located in:'
+        ),
+        TypeAheadFormField(
+          textFieldConfiguration: TextFieldConfiguration(
+            controller: _typeAheadController,
+            decoration: InputDecoration(
+              labelText: 'Room',
+            ),
+          ),          
+          suggestionsCallback: (pattern) async {
+            //_typeAheadController.text = await wifiSuggenstions.first;
+            return await wifiSuggenstions;
+          },
+          itemBuilder: (context, suggestion) {
+            return ListTile(
+              title: Text(suggestion),
+            );
+          },
+          transitionBuilder: (context, suggestionsBox, controller) {
+            return suggestionsBox;
+          },
+          onSuggestionSelected: (suggestion) {
+            _typeAheadController.text = suggestion;
+          },
+          validator: (value) {
+            if (value.isEmpty) {
+              return 'Please select a room';
+            }
+          },
+          onSaved: (value) => _selectedCity = value,
+        ),
+        SizedBox(height: 10.0,),
+        RaisedButton(
+          child: Text('Submit'),
+          onPressed: () {
+            if (_formKey.currentState.validate()) {
+              _formKey.currentState.save();
+              Scaffold.of(context).showSnackBar(SnackBar(
+                content: Text('Current room is ${_selectedCity}')
+              ));
+            }
+          },
+        )
+      ],
+    ),
+  ),
+);
 }
 
+}
