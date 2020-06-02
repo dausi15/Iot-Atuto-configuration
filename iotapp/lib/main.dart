@@ -6,9 +6,10 @@ import 'package:wifi_hunter/wifi_hunter.dart';
 import 'package:flutter/services.dart';
 //import 'package:dropdown_formfield/dropdown_formfield.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert' show utf8;
 
 BluetoothState state;
-
 void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
@@ -35,10 +36,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  //BluetoothDevice _connectedDevice;
+  BluetoothDevice _connectedDevice;
   //List<BluetoothService> _services;
+  BluetoothCharacteristic targetCharacteristic;
+  final String SERVICE_UUID = "3f1a9658-a035-11ea-bb37-0242ac130002";
+  final String CHARACTERISTIC_UUID = "3f1a987e-a035-11ea-bb37-0242ac130002";
   bool autoMode = false;
   WiFiInfoWrapper _wifiObject;
+  bool connecting = false;
 
   Future<WiFiInfoWrapper> scanWiFi() async {
     WiFiInfoWrapper wifiObject;
@@ -56,7 +61,7 @@ class _MyHomePageState extends State<MyHomePage> {
     _wifiObject = await scanWiFi();
     var wifiStrenghts = new Map<String, int>();
     //var wifiNames = new Map<String, String>();
-    print("WiFi Results (SSIDs) : ");
+    // print("WiFi Results (SSIDs) : ");
     for (var i = 0; i < _wifiObject.ssids.length; i++) {
       wifiStrenghts[_wifiObject.bssids[i].toString()] =
           _wifiObject.signalStrengths[i];
@@ -90,12 +95,14 @@ class _MyHomePageState extends State<MyHomePage> {
     //debugPrint(widget.devicesList.length.toString());
     widget.devicesList.clear();
     widget.flutterBlue.stopScan();
-    widget.flutterBlue.startScan(timeout: Duration(seconds: 2));
+    widget.flutterBlue.startScan(timeout: Duration(seconds: 2)); 
 
     widget.flutterBlue.scanResults.listen((List<ScanResult> results) {
       /* _setDevicelist(results); */
       for (ScanResult result in results) {
-        _addDeviceTolist(result.device);
+        if (result.device.name == "UART Service") {
+          _addDeviceTolist(result.device);
+        }
       }
       //widget.devicesList.sort();
       //_removeFromDeviceList(results);
@@ -126,10 +133,64 @@ class _MyHomePageState extends State<MyHomePage> {
             _addDeviceTolist(device);
           }
         });
-        const fiveSeconds = const Duration(seconds: 5);
-        Timer.periodic(fiveSeconds, (Timer t) => _clearDevices());
+        clearDeviceView();
+        //_clearDevices();
       }
     });
+  }
+
+  clearDeviceView() {
+    const fiveSeconds = const Duration(seconds: 5);
+    if (!connecting) {
+      Timer.periodic(fiveSeconds, (Timer t) => _clearDevices());
+    }
+    debugPrint(widget.devicesList.toString());
+  }
+
+  discoverServices() async {
+    final store = await SharedPreferences.getInstance();
+    if (_connectedDevice == null) {
+      return;
+    }
+
+    List<BluetoothService> services = await _connectedDevice.discoverServices();
+    print(_connectedDevice.name);
+    services.forEach((service) {
+      print("service: " + service.uuid.toString());
+      if (service.uuid.toString() == SERVICE_UUID) {
+        service.characteristics.forEach((characteristics) {
+          print(characteristics.uuid.toString());
+          if (characteristics.uuid.toString() == CHARACTERISTIC_UUID) {
+            targetCharacteristic = characteristics;
+            /* setState(() {
+              connectionText = "All Ready with ${targetDevice.name}";
+            }); */
+          }
+        });
+      }
+    });
+    String ssid = store.getString("ssid");
+    String identity = store.getString("identity");
+    String password = store.getString("password");
+    String server = store.getString("server");
+    if (ssid != null) {
+      writeData(ssid + ";" + identity + ";" + password + ";" + server);
+    }
+  }
+
+  String dataClassifier(int value) {
+    return "[" + value.toString() + "]";
+  }
+
+  writeData(String data) async {
+    debugPrint(data);
+    if (targetCharacteristic == null) return;
+    print("writing: " + data);
+    List<int> bytes = utf8.encode(data);
+    await targetCharacteristic.write(bytes);
+    _connectedDevice.disconnect();
+    connecting = false;
+    //clearDeviceView();
   }
 
   ListView _buildListViewOfDevices() {
@@ -156,18 +217,23 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 onPressed: () async {
                   widget.flutterBlue.stopScan();
+                  connecting = true;
+                  debugPrint("should connect");
                   try {
+                    print("device.connect");
                     await device.connect();
                   } catch (e) {
                     if (e.code != 'already_connected') {
                       throw e;
                     }
                   } finally {
+                    print("finally connect");
                     //_services = await device.discoverServices();
                   }
                   setState(() {
-                    //_connectedDevice = device;
+                    _connectedDevice = device;
                   });
+                  discoverServices();
                 },
               ),
             ],
@@ -201,16 +267,28 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Future<List<String>> printWifis() async{
+  Future<List<String>> printWifis() async {
     List<String> wifis = new List<String>();
     scanHandler().asStream().listen((event) {
-      debugPrint(event.toString());
-      for(var x in event.entries){
+      //debugPrint(event.toString());
+      for (var x in event.entries) {
         wifis.add(x.key.toString());
       }
       //wifis.add(event.toString());
     });
     return wifis;
+  }
+
+  Future<String> getClosestWifi() async {
+    List<String> wifis = new List<String>();
+    scanHandler().asStream().listen((event) {
+      //debugPrint(event.toString());
+      for (var x in event.entries) {
+        wifis.add(x.key.toString());
+      }
+      //wifis.add(event.toString());
+    });
+    return wifis.toString();
   }
 
 //https://pub.dev/packages/dropdown_formfield
@@ -270,16 +348,25 @@ class MyCustomFormState extends State<MyCustomForm> {
   //String _myActivityResult;
   final dropdownFormKey = new GlobalKey<FormState>();
   var ssidTextController = new TextEditingController();
+  var identityTextController = new TextEditingController();
   var passwordTextController = new TextEditingController();
   var serverTextController = new TextEditingController();
 
   final GlobalKey<FormState> _formKey2 = GlobalKey<FormState>();
   TextEditingController _typeAheadController = TextEditingController();
   String _selectedCity;
+  Future<List<String>> wifiSuggenstions;
 
   @override
-  void initState() {    
+  void initState() {
     super.initState();
+    wifiSuggenstions = _MyHomePageState().printWifis();
+    SharedPreferences.getInstance().then((value) {
+      ssidTextController.text = value.getString("ssid");
+      identityTextController.text = value.getString("identity");
+      passwordTextController.text = value.getString("password");
+      serverTextController.text = value.getString("server");
+    });
     //_myActivity = '';
     //_myActivityResult = '';
   }
@@ -334,6 +421,8 @@ class MyCustomFormState extends State<MyCustomForm> {
     // Build a Form widget using the _formKey created above.
     Container ssid =
         inputContainer("ssid", ssidTextController, Icons.network_wifi);
+    Container identity =
+        inputContainer("identity", identityTextController, Icons.network_wifi);
     Container password =
         inputContainer("password", passwordTextController, Icons.lock);
     Container server =
@@ -343,6 +432,7 @@ class MyCustomFormState extends State<MyCustomForm> {
         child: ListView(children: <Widget>[
           // Add TextFormFields and RaisedButton here.
           ssid,
+          identity,
           password,
           server,
           FlatButton(
@@ -352,83 +442,81 @@ class MyCustomFormState extends State<MyCustomForm> {
                 style: TextStyle(color: Colors.white),
               ),
               onPressed: () async {
+                final store = await SharedPreferences.getInstance();
+                store.setString("ssid", ssidTextController.text.toString());
+                store.setString(
+                    "identity", identityTextController.text.toString());
+                store.setString(
+                    "password", passwordTextController.text.toString());
+                store.setString("server", serverTextController.text.toString());
                 return showDialog(
                     context: context,
                     builder: (context) {
                       return AlertDialog(
                         // Retrieve the text the that user has entered by using the
                         // TextEditingController.
-                        content: Text(ssidTextController.text +
-                            "\n" +
-                            passwordTextController.text +
-                            "\n" +
-                            serverTextController.text +
-                            "\n"),
+                        content: Text(
+                          ssidTextController.text +
+                              "\n" +
+                              passwordTextController.text +
+                              "\n" +
+                              serverTextController.text +
+                              "\n" +
+                              store.getString("ssid"),
+                        ),
                       );
                     });
               }),
-          dropDownForm(_typeAheadController, _formKey2, _selectedCity)
+          //dropDownForm(_typeAheadController, _formKey2, _selectedCity)
         ]));
   }
 
-  Widget dropDownForm(TextEditingController _typeAheadController, GlobalKey<FormState> _formKey, String _selectedCity){
-  Future<List<String>> wifiSuggenstions = _MyHomePageState().printWifis();
-
-  
-  return Form(
-  key: _formKey,
-  child: Padding(
-    padding: EdgeInsets.all(32.0),
-    child: Column(
-      children: <Widget>[
-        Text(
-          'Located in:'
+  Widget dropDownForm(TextEditingController _typeAheadController,
+      GlobalKey<FormState> _formKey, String _selectedCity) {
+    return Form(
+      key: _formKey,
+      child: Padding(
+        padding: EdgeInsets.all(32.0),
+        child: Column(
+          children: <Widget>[
+            Text('Located in:'),
+            TypeAheadFormField(
+              textFieldConfiguration: TextFieldConfiguration(
+                controller: _typeAheadController,
+                decoration: InputDecoration(
+                  labelText: 'Room',
+                ),
+              ),
+              suggestionsCallback: (pattern) async {
+                //_typeAheadController.text = await wifiSuggenstions.first;
+                return await wifiSuggenstions;
+              },
+              itemBuilder: (context, suggestion) {
+                return ListTile(
+                  title: Text(suggestion),
+                );
+              },
+              transitionBuilder: (context, suggestionsBox, controller) {
+                return suggestionsBox;
+              },
+              onSuggestionSelected: (suggestion) {
+                _typeAheadController.text = suggestion;
+                if (_formKey.currentState.validate()) {
+                  _formKey.currentState.save();
+                  Scaffold.of(context).showSnackBar(SnackBar(
+                      content: Text('Current room is ${_selectedCity}')));
+                }
+              },
+              validator: (value) {
+                if (value.isEmpty) {
+                  return 'Please select a room';
+                }
+              },
+              onSaved: (value) => _selectedCity = value,
+            )
+          ],
         ),
-        TypeAheadFormField(
-          textFieldConfiguration: TextFieldConfiguration(
-            controller: _typeAheadController,
-            decoration: InputDecoration(
-              labelText: 'Room',
-            ),
-          ),          
-          suggestionsCallback: (pattern) async {
-            //_typeAheadController.text = await wifiSuggenstions.first;
-            return await wifiSuggenstions;
-          },
-          itemBuilder: (context, suggestion) {
-            return ListTile(
-              title: Text(suggestion),
-            );
-          },
-          transitionBuilder: (context, suggestionsBox, controller) {
-            return suggestionsBox;
-          },
-          onSuggestionSelected: (suggestion) {
-            _typeAheadController.text = suggestion;
-          },
-          validator: (value) {
-            if (value.isEmpty) {
-              return 'Please select a room';
-            }
-          },
-          onSaved: (value) => _selectedCity = value,
-        ),
-        SizedBox(height: 10.0,),
-        RaisedButton(
-          child: Text('Submit'),
-          onPressed: () {
-            if (_formKey.currentState.validate()) {
-              _formKey.currentState.save();
-              Scaffold.of(context).showSnackBar(SnackBar(
-                content: Text('Current room is ${_selectedCity}')
-              ));
-            }
-          },
-        )
-      ],
-    ),
-  ),
-);
-}
-
+      ),
+    );
+  }
 }
