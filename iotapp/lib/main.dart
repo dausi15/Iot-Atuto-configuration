@@ -15,11 +15,11 @@ void main() => runApp(MyApp());
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'BLE Demo',
+        title: 'IoT Autoconf',
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: MyHomePage(title: 'Flutter BLE Demo'),
+        home: MyHomePage(title: 'IoT Autoconf'),
       );
 }
 
@@ -37,7 +37,6 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   BluetoothDevice _connectedDevice;
-  //List<BluetoothService> _services;
   BluetoothCharacteristic targetCharacteristic;
   final String SERVICE_UUID = "3f1a9658-a035-11ea-bb37-0242ac130002";
   final String CHARACTERISTIC_UUID = "3f1a987e-a035-11ea-bb37-0242ac130002";
@@ -60,13 +59,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<Map<String, int>> scanHandler() async {
     _wifiObject = await scanWiFi();
     var wifiStrenghts = new Map<String, int>();
-    //var wifiNames = new Map<String, String>();
-    // print("WiFi Results (SSIDs) : ");
     for (var i = 0; i < _wifiObject.ssids.length; i++) {
       wifiStrenghts[_wifiObject.bssids[i].toString()] =
           _wifiObject.signalStrengths[i];
-      //wifiNames[_wifiObject.bssids[i].toString()] = _wifiObject.ssids[i];
-      //debugPrint("- " + _wifiObject.ssids[i]+ "   bssid: "+ _wifiObject.bssids[i] + " : " + _wifiObject.signalStrengths[i].toString());
     }
     var sortedMap = Map.fromEntries(wifiStrenghts.entries.toList()
       ..sort((e1, e2) => e2.value.compareTo(e1.value)));
@@ -81,18 +76,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-/*   _removeFromDeviceList(final List<ScanResult> results) {
-    for (BluetoothDevice device in widget.devicesList) {
-      if (!results.contains(device)) {
-        setState(() {
-          widget.devicesList.remove(device);
-        });
-      }
-    }
-  } */
-
   _clearDevices() {
-    //debugPrint(widget.devicesList.length.toString());
     widget.devicesList.clear();
     widget.flutterBlue.stopScan();
     widget.flutterBlue.startScan(timeout: Duration(seconds: 2)); 
@@ -149,7 +133,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   discoverServices() async {
     final store = await SharedPreferences.getInstance();
-    if (_connectedDevice == null) {
+    if (_connectedDevice == null) { 
       return;
     }
 
