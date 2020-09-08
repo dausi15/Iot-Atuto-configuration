@@ -1,0 +1,40 @@
+@prefix bd: <https://brickschema.org/schema/1.0.1/BrickData#> .
+@prefix bds: <https://brickschema.org/schema/1.0.1/BrickDataStatic#> .
+@prefix bdsmap: <https://brickschema.org/schema/1.0.1/BrickDataSmap#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+bd:Model_Approach a owl:Class .
+
+bd:Property a owl:Class .
+
+bd:hasProperty a owl:ObjectProperty .
+
+bdsmap:Archiver a owl:Class .
+
+bdsmap:Data rdfs:subClassOf bd:Data .
+
+bdsmap:add a owl:ObjectProperty .
+
+bdsmap:archivedAt a owl:ObjectProperty .
+
+bdsmap:hasData rdfs:subClassOf bd:hasData .
+
+bdsmap:key a owl:ObjectProperty .
+
+bdsmap:query a owl:ObjectProperty .
+
+bdsmap:uuid a owl:ObjectProperty .
+
+bds:Data rdfs:subClassOf bd:Data .
+
+bds:hasData rdfs:subClassOf bd:hasData .
+
+bds:value a owl:ObjectProperty .
+
+bd:Data a owl:Class .
+
+bd:hasData a owl:ObjectProperty .
