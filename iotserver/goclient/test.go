@@ -28,6 +28,10 @@
 	 "time"
 	 "net/url"
 	 "log"
+	 "net"
+
+	 "google.golang.org/grpc"
+	 "github.com/dausi15/Iot-Atuto-configuration/iotserver/goclient/chat"
 
 	 client "github.com/influxdata/influxdb1-client"
 	 MQTT "github.com/eclipse/paho.mqtt.golang"
@@ -53,7 +57,7 @@ func BytesToString(data []byte) string {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	git config --global url."https://github.com/".insteadOf "git@github.com"
 	var (
 		pts = make([]client.Point, 1)	
 	)
@@ -87,6 +91,17 @@ func BytesToString(data []byte) string {
 
 
  func main() {
+
+	lis, err := net.Listen("tcp", ":9000")
+	if err != nil {
+		log.Fatalf("Failed to listen on port 9000: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to server gRPC server over port 9000: %v", err)
+	}
 	 //MQTT.DEBUG = log.New(os.Stdout, "", 0)
 	 //MQTT.ERROR = log.New(os.Stdout, "", 0)
 	 c := make(chan os.Signal, 1)
