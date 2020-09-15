@@ -4,7 +4,6 @@ import 'package:system_setting/system_setting.dart';
 import 'dart:async';
 import 'package:wifi_hunter/wifi_hunter.dart';
 import 'package:flutter/services.dart';
-//import 'package:dropdown_formfield/dropdown_formfield.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert' show utf8;
@@ -82,24 +81,13 @@ class _MyHomePageState extends State<MyHomePage> {
     widget.flutterBlue.startScan(timeout: Duration(seconds: 2)); 
 
     widget.flutterBlue.scanResults.listen((List<ScanResult> results) {
-      /* _setDevicelist(results); */
       for (ScanResult result in results) {
         if (result.device.name == "UART Service") {
           _addDeviceTolist(result.device);
         }
       }
-      //widget.devicesList.sort();
-      //_removeFromDeviceList(results);
     });
-    //widget.flutterBlue.stopScan();
   }
-
-/*     _setDevicelist(final List<ScanResult> results) {
-      widget.devicesList.clear();
-      for (ScanResult result in results) {
-        widget.devicesList.add(result.device);
-      }
-  } */
 
   @override
   void initState() {
@@ -118,7 +106,6 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         });
         clearDeviceView();
-        //_clearDevices();
       }
     });
   }
@@ -146,9 +133,6 @@ class _MyHomePageState extends State<MyHomePage> {
           print(characteristics.uuid.toString());
           if (characteristics.uuid.toString() == CHARACTERISTIC_UUID) {
             targetCharacteristic = characteristics;
-            /* setState(() {
-              connectionText = "All Ready with ${targetDevice.name}";
-            }); */
           }
         });
       }
@@ -174,7 +158,6 @@ class _MyHomePageState extends State<MyHomePage> {
     await targetCharacteristic.write(bytes);
     _connectedDevice.disconnect();
     connecting = false;
-    //clearDeviceView();
   }
 
   ListView _buildListViewOfDevices() {
@@ -212,7 +195,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     }
                   } finally {
                     print("finally connect");
-                    //_services = await device.discoverServices();
                   }
                   setState(() {
                     _connectedDevice = device;
@@ -254,11 +236,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<List<String>> printWifis() async {
     List<String> wifis = new List<String>();
     scanHandler().asStream().listen((event) {
-      //debugPrint(event.toString());
       for (var x in event.entries) {
         wifis.add(x.key.toString());
       }
-      //wifis.add(event.toString());
     });
     return wifis;
   }
@@ -266,11 +246,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String> getClosestWifi() async {
     List<String> wifis = new List<String>();
     scanHandler().asStream().listen((event) {
-      //debugPrint(event.toString());
       for (var x in event.entries) {
         wifis.add(x.key.toString());
       }
-      //wifis.add(event.toString());
     });
     return wifis.toString();
   }
@@ -278,7 +256,6 @@ class _MyHomePageState extends State<MyHomePage> {
 //https://pub.dev/packages/dropdown_formfield
   @override
   Widget build(BuildContext context) {
-    //scanHandler();
     return Scaffold(
         resizeToAvoidBottomInset: false,
         appBar: AppBar(
@@ -290,7 +267,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 printWifis();
                 setState(() {
                   autoMode = value;
-                  //print(autoMode);
                 });
               },
               activeTrackColor: Colors.lightGreenAccent,
@@ -298,7 +274,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ],
         ),
-        body: myLayoutWidget() //_buildView()
+        body: myLayoutWidget()
         );
   }
 
@@ -314,13 +290,6 @@ class MyCustomForm extends StatefulWidget {
   }
 }
 
-/* class Wifi {
-  final String ssid;
-  final String bssid;
-
-  Wifi(this.ssid, this.bssid);
-} */
-
 class MyCustomFormState extends State<MyCustomForm> {
   // Create a global key that uniquely identifies the Form widget
   // and allows validation of the form.
@@ -328,8 +297,6 @@ class MyCustomFormState extends State<MyCustomForm> {
   // Note: This is a `GlobalKey<FormState>`,
   // not a GlobalKey<MyCustomFormState>.
   final _formKey = GlobalKey<FormState>();
-  //String _myActivity;
-  //String _myActivityResult;
   final dropdownFormKey = new GlobalKey<FormState>();
   var ssidTextController = new TextEditingController();
   var identityTextController = new TextEditingController();
@@ -338,7 +305,7 @@ class MyCustomFormState extends State<MyCustomForm> {
 
   final GlobalKey<FormState> _formKey2 = GlobalKey<FormState>();
   TextEditingController _typeAheadController = TextEditingController();
-  String _selectedCity;
+  String _selectedRoom;
   Future<List<String>> wifiSuggenstions;
 
   @override
@@ -351,8 +318,6 @@ class MyCustomFormState extends State<MyCustomForm> {
       passwordTextController.text = value.getString("password");
       serverTextController.text = value.getString("server");
     });
-    //_myActivity = '';
-    //_myActivityResult = '';
   }
 
   _saveForm() {
@@ -360,7 +325,6 @@ class MyCustomFormState extends State<MyCustomForm> {
     if (form.validate()) {
       form.save();
       setState(() {
-        //_myActivityResult = _myActivity;
       });
     }
   }
@@ -376,7 +340,6 @@ class MyCustomFormState extends State<MyCustomForm> {
                 TextFormField(
                   decoration: InputDecoration(
                     icon: Icon(icon),
-                    hintText: 'What do people call you?',
                     labelText: input.toUpperCase(),
                   ),
                   controller: _controller,
@@ -451,7 +414,6 @@ class MyCustomFormState extends State<MyCustomForm> {
                       );
                     });
               }),
-          //dropDownForm(_typeAheadController, _formKey2, _selectedCity)
         ]));
   }
 
@@ -472,7 +434,6 @@ class MyCustomFormState extends State<MyCustomForm> {
                 ),
               ),
               suggestionsCallback: (pattern) async {
-                //_typeAheadController.text = await wifiSuggenstions.first;
                 return await wifiSuggenstions;
               },
               itemBuilder: (context, suggestion) {
@@ -488,7 +449,7 @@ class MyCustomFormState extends State<MyCustomForm> {
                 if (_formKey.currentState.validate()) {
                   _formKey.currentState.save();
                   Scaffold.of(context).showSnackBar(SnackBar(
-                      content: Text('Current room is ${_selectedCity}')));
+                      content: Text('Current room is ${_selectedRoom}')));
                 }
               },
               validator: (value) {
@@ -496,7 +457,7 @@ class MyCustomFormState extends State<MyCustomForm> {
                   return 'Please select a room';
                 }
               },
-              onSaved: (value) => _selectedCity = value,
+              onSaved: (value) => _selectedRoom = value,
             )
           ],
         ),
