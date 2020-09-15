@@ -1,23 +1,24 @@
-import paho.mqtt.client as mqtt
+import paho.mqtt.client as paho
+import time
+import requests
+broker="167.172.45.102"
 
-# The callback for when the client receives a CONNACK response from the server.
-def on_connect(client, userdata, rc):
-    print("Connected with result code "+str(rc))
-    # Subscribing in on_connect() means that if we lose the connection and
-    # reconnect then subscriptions will be renewed.
-    client.subscribe("register/#")
+port=1883
+def on_publish(client,userdata,result):                 #create function for callback
+    print("data published \n")
+    pass
+client1= paho.Client("control1")                           #create client object
+client1.on_publish = on_publish                          #assign function to callback
+client1.connect(broker,port)                            #establish connection
 
-# The callback for when a PUBLISH message is received from the server.
-def on_message(client, userdata, msg):
-    print(msg.topic+" "+str(msg.payload))
 
-client = mqtt.Client()
-client.on_connect = on_connect
-client.on_message = on_message
-
-client.connect("167.172.45.102", 1883, 60)
-# Blocking call that processes network traffic, dispatches callbacks and
-# handles reconnecting.
-# Other loop*() functions are available that give a threaded interface and a
-# manual interface.
-client.loop_forever()
+milli_sec = int(round(time.time() * 1000))
+print(milli_sec)
+data = "54:a2:74:e9:6e:c9;"+str(milli_sec)
+ret= client1.publish("register/",data)
+zone_name = ""
+mobiletime = ""
+arrivaltime = ""
+endtime = ""
+_data='log,zone='+zone_name+' mobiletime="'+mobiletime+'",arrivaltime="'+str(arrivaltime)+'",endtime="'+str(endtime)+'"'
+x = requests.post("http://167.172.45.102:8086/write?db=logdb",data=_data) 
